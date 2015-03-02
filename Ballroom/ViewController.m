@@ -30,15 +30,18 @@ static const CGFloat kGravityModifier = 2.2;
 - (void)viewDidLoad {
     
     [super viewDidLoad];
-    self.containerView.layer.borderColor = [[UIColor blackColor] CGColor];
-    self.containerView.layer.borderWidth = 0.5;
+//    self.containerView.layer.borderColor = [[UIColor blackColor] CGColor];
+//    self.containerView.layer.borderWidth = 0.5;
+    [self.containerView removeFromSuperview];
+    self.containerView = self.view ;
 }
 
 - (void) viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
-    [self createBalls:100 withBallSize:15.0 andDeviation:7.0];
+    [self createBalls:100 withBallSize:10.0 andDeviation:9.0];
     [self setupGravity:self.animator];
     [self setupInteraction];
+    //[self setupBoundaries];
 }
 
 - (void)didPan:(UIPanGestureRecognizer *)panner {
@@ -170,6 +173,29 @@ static const CGFloat kGravityModifier = 2.2;
     bounce.friction = 0.1;
     [self.animator addBehavior:bounce];
     
+}
+
+- (void) setupBoundaries {
+    UICollisionBehavior*collide = [[UICollisionBehavior alloc]
+                                   initWithItems:self.balls];
+    [collide addBoundaryWithIdentifier:@"topEdgeBarrier"
+                             fromPoint:CGPointMake(0, 1)
+                               toPoint:CGPointMake(self.containerView.bounds.size.width, 1)];
+    
+    [collide addBoundaryWithIdentifier:@"bottomEdgeBarrier"
+                             fromPoint:CGPointMake(0, self.containerView.bounds.size.height-1)
+                               toPoint:CGPointMake(self.containerView.bounds.size.width, self.containerView.bounds.size.height-1)];
+    [collide addBoundaryWithIdentifier:@"leftEdgeBarrier"
+                             fromPoint:CGPointMake(1, 0)
+                               toPoint:CGPointMake(1, self.containerView.bounds.size.height)];
+    
+    [collide addBoundaryWithIdentifier:@"rightEdgeBarrier"
+                             fromPoint:CGPointMake(self.containerView.bounds.size.width -1, 0)
+                               toPoint:CGPointMake(self.containerView.bounds.size.width -1, self.containerView.bounds.size.height)];
+    
+    
+    collide.translatesReferenceBoundsIntoBoundary = YES;
+    [self.animator addBehavior:collide];
 }
 
 - (void) setupInteraction {
