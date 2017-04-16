@@ -18,8 +18,9 @@
 @property (nonatomic, strong) NSMutableArray *balls;
 @property (weak, nonatomic) IBOutlet UIView *containerView;
 @property (nonatomic, strong) UICollisionBehavior *supercollider;
-@property (nonatomic, strong) UIDynamicItemBehavior *properties;
+@property (nonatomic, strong) UIDynamicItemBehavior *bouncer;
 @property (nonatomic, strong) NSMutableArray *pushBehaviors;
+@property (nonatomic, strong) NSTimer *timer;
 
 @end
 
@@ -30,8 +31,6 @@ static const CGFloat kGravityModifier = 2.2;
 - (void)viewDidLoad {
     
     [super viewDidLoad];
-//    self.containerView.layer.borderColor = [[UIColor blackColor] CGColor];
-//    self.containerView.layer.borderWidth = 0.5;
     [self.containerView removeFromSuperview];
     self.containerView = self.view ;
 }
@@ -41,7 +40,7 @@ static const CGFloat kGravityModifier = 2.2;
     [self createBalls:100 withBallSize:10.0 andDeviation:9.0];
     [self setupGravity:self.animator];
     [self setupInteraction];
-    //[self setupBoundaries];
+     self.timer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(checkBallBounds) userInfo:nil repeats:true];
 }
 
 - (void)didPan:(UIPanGestureRecognizer *)panner {
@@ -157,6 +156,91 @@ static const CGFloat kGravityModifier = 2.2;
     }
 }
 
+
+- (void) recycleBallWatterFallStyle {
+    NSMutableArray *ballsToRemove = [NSMutableArray array];
+    for (UIView *ball in self.balls) {
+        CGFloat margin = 5.0;
+        BOOL ballIsBad = NO;
+        if (CGRectGetMinX(ball.frame) < margin) {
+            ball.center = CGPointMake(self.view.bounds.size.width - ball.frame.size.width - margin, ball.center.y);
+            ballIsBad = YES;
+        }
+        if (CGRectGetMaxX(ball.frame) > self.view.bounds.size.width - margin) {
+            ball.center = CGPointMake(ball.frame.size.width / 2.0 + margin, ball.center.y);
+            ballIsBad = YES;
+        }
+        if (CGRectGetMinY(ball.frame) < margin) {
+            ball.center = CGPointMake(ball.center.x, self.view.bounds.size.height - ball.frame.size.height / 2.0 - margin);
+            ballIsBad = YES;
+        }
+        if (CGRectGetMaxY(ball.frame) > self.view.bounds.size.height - margin) {
+            ball.center = CGPointMake(ball.center.x, ball.frame.size.height + margin);
+            ballIsBad = YES;
+        }
+        
+        if ( ballIsBad) {
+            [self.supercollider removeItem:ball];
+            [self.bouncer removeItem:ball];
+            [self.gravity removeItem:ball];
+            
+            [ball removeFromSuperview];
+            [ballsToRemove addObject:ball];
+            
+            //Re Add it on the other side?
+            
+            [self.containerView addSubview:ball];
+            [self.supercollider addItem:ball];
+            [self.bouncer addItem:ball];
+            [self.gravity addItem:ball];
+        }
+    }
+    // [self.balls removeObjectsInArray:ballsToRemove];
+}
+
+
+
+- (void) checkBallBounds {
+    NSMutableArray *ballsToRemove = [NSMutableArray array];
+    for (UIView *ball in self.balls) {
+        CGFloat radius = ball.frame.size.width / 2.0;
+        BOOL ballIsBad = NO;
+        if (CGRectGetMinX(ball.frame) < - radius) {
+            ball.center = CGPointMake(radius, ball.center.y);
+            ballIsBad = YES;
+        }
+        if (CGRectGetMaxX(ball.frame) > self.view.bounds.size.width + radius) {
+            ball.center = CGPointMake(self.view.bounds.size.width - radius, ball.center.y);
+            ballIsBad = YES;
+        }
+        if (CGRectGetMinY(ball.frame) < -radius) {
+            ball.center = CGPointMake(ball.center.x, radius);
+            ballIsBad = YES;
+        }
+        if (CGRectGetMaxY(ball.frame) > self.view.bounds.size.height + radius) {
+            ball.center = CGPointMake(ball.center.x, ball.frame.size.height - radius);
+            ballIsBad = YES;
+        }
+        
+        if ( ballIsBad) {
+            [self.supercollider removeItem:ball];
+            [self.bouncer removeItem:ball];
+            [self.gravity removeItem:ball];
+            
+            [ball removeFromSuperview];
+            [ballsToRemove addObject:ball];
+            
+            //Re Add it on the other side?
+            
+            [self.containerView addSubview:ball];
+            [self.supercollider addItem:ball];
+            [self.bouncer addItem:ball];
+            [self.gravity addItem:ball];
+        }
+    }
+   // [self.balls removeObjectsInArray:ballsToRemove];
+}
+
 - (void) setupGravity:(UIDynamicAnimator *)animator {
     self.gravity = [[UIGravityBehavior alloc] initWithItems:self.balls];
     
@@ -168,10 +252,10 @@ static const CGFloat kGravityModifier = 2.2;
     [self.animator addBehavior:self.supercollider];
     
     
-    UIDynamicItemBehavior *bounce = [[UIDynamicItemBehavior alloc] initWithItems:self.balls];
-    bounce.elasticity = 0.90;
-    bounce.friction = 0.1;
-    [self.animator addBehavior:bounce];
+    self.bouncer = [[UIDynamicItemBehavior alloc] initWithItems:self.balls];
+    self.bouncer.elasticity = 0.90;
+    self.bouncer.friction = 0.1;
+    [self.animator addBehavior:self.bouncer];
     
 }
 
@@ -192,8 +276,7 @@ static const CGFloat kGravityModifier = 2.2;
     [collide addBoundaryWithIdentifier:@"rightEdgeBarrier"
                              fromPoint:CGPointMake(self.containerView.bounds.size.width -1, 0)
                                toPoint:CGPointMake(self.containerView.bounds.size.width -1, self.containerView.bounds.size.height)];
-    
-    
+   
     collide.translatesReferenceBoundsIntoBoundary = YES;
     [self.animator addBehavior:collide];
 }
@@ -214,8 +297,8 @@ static const CGFloat kGravityModifier = 2.2;
         self.manager.deviceMotionUpdateInterval = 0.05;
         [self.manager startAccelerometerUpdatesToQueue:[NSOperationQueue mainQueue] withHandler:^(CMAccelerometerData *accelerometerData, NSError *error) {
             CMAcceleration acc = accelerometerData.acceleration;
-            self.gravity.gravityDirection = CGVectorMake( acc.x*kGravityModifier,
-                                                         -acc.y*kGravityModifier );
+            self.gravity.gravityDirection = CGVectorMake( acc.y*kGravityModifier,
+                                                          acc.x*kGravityModifier );
 
         }];
     }
@@ -223,6 +306,18 @@ static const CGFloat kGravityModifier = 2.2;
 
 - (void)didReceiveMemoryWarning {
     [super didReceiveMemoryWarning];
+}
+
+- (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {
+    return UIInterfaceOrientationPortrait;
+}
+
+- (BOOL) shouldAutorotate {
+    return NO;
+}
+
+- (UIInterfaceOrientationMask) supportedInterfaceOrientations {
+    return UIInterfaceOrientationMaskPortrait;
 }
 
 @end
