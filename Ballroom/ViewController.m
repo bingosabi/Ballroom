@@ -297,8 +297,8 @@ static const CGFloat kGravityModifier = 2.2;
         self.manager.deviceMotionUpdateInterval = 0.05;
         [self.manager startAccelerometerUpdatesToQueue:[NSOperationQueue mainQueue] withHandler:^(CMAccelerometerData *accelerometerData, NSError *error) {
             CMAcceleration acc = accelerometerData.acceleration;
-            self.gravity.gravityDirection = CGVectorMake( acc.y*kGravityModifier,
-                                                          acc.x*kGravityModifier );
+            self.gravity.gravityDirection = CGVectorMake( acc.x*kGravityModifier,
+                                                          -acc.y*kGravityModifier );
 
         }];
     }
